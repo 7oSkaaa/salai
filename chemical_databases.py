@@ -4,10 +4,10 @@ import requests
 import time
 import urllib.parse
 from rdkit import Chem
+
 # Note: PandasTools import removed to avoid graphics dependency issues
 # The main RDKit functionality (Chem module) is still available for SMILES processing
 HAS_RDKIT_DRAW = False  # We don't need drawing functionality for this application
-import io
 
 def search_pubchem(query, max_compounds=100):
     """
@@ -299,23 +299,7 @@ def combine_datasets(dfs):
 
     return combined
 
-def get_drugbank_approved_drugs(max_compounds=200):
-    """Return a small dataset of approved drugs from DrugBank"""
-    # This is a limited set of approved drugs with their SMILES
-    # In a production app, you'd want to integrate with the full DrugBank API
-    approved_drugs = [
-        {"name": "Aspirin", "compound_iso_smiles": "CC(=O)OC1=CC=CC=C1C(=O)O", "source": "DrugBank"},
-        {"name": "Ibuprofen", "compound_iso_smiles": "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O", "source": "DrugBank"},
-        {"name": "Acetaminophen", "compound_iso_smiles": "CC(=O)NC1=CC=C(C=C1)O", "source": "DrugBank"},
-        {"name": "Atorvastatin", "compound_iso_smiles": "CC(C)C1=C(C=CC=C1)C(=O)NC(CC(C)C)C(=O)NC(CC2=CC=C(C=C2)F)C(O)CC(O)CC3=CC=C(C=C3)O", "source": "DrugBank"},
-        {"name": "Simvastatin", "compound_iso_smiles": "CCC(C)(C)C1=C(C=C(C=C1)C2=CC=C(C=C2)C(C)C(=O)NC3CC4=C(C3)C=CC=C4)C5=CC=C(C=C5)O", "source": "DrugBank"},
-        {"name": "Lisinopril", "compound_iso_smiles": "NCCCCC(NC(=O)C(CC1=CC=CC=C1)NC(=O)C(C(C)CC)NC)C(=O)O", "source": "DrugBank"},
-        {"name": "Metformin", "compound_iso_smiles": "CN(C)C(=N)NC(=N)N", "source": "DrugBank"},
-        {"name": "Warfarin", "compound_iso_smiles": "CC(=O)CC(C1=CC=CC=C1)C2=C(C=C(C=C2)O)C(=O)O", "source": "DrugBank"},
-        {"name": "Omeprazole", "compound_iso_smiles": "CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=C(C=C3)OC", "source": "DrugBank"},
-        {"name": "Fluoxetine", "compound_iso_smiles": "CNCCC(C1=CC=CC=C1)OC2=CC=C(C=C2)C(F)(F)F", "source": "DrugBank"},
-    ]
-    return pd.DataFrame(approved_drugs)
+
 
 def get_default_compounds(query_type="general"):
     """Return a set of default compounds when API searches fail"""

@@ -25,11 +25,11 @@ from torch_geometric.loader import DataLoader
 
 # Import the chemical database integration with fallback options
 try:
-    from chemical_databases import search_pubchem, search_chembl, get_drugbank_approved_drugs
+    from chemical_databases import search_pubchem, search_chembl
 except ImportError as e:
     st.error(f"Error importing chemical_databases: {str(e)}")
     # Define fallback functions
-    def get_drugbank_approved_drugs(max_compounds=200):
+    def get_default_compounds():
         return pd.DataFrame([
             {"name": "Aspirin", "compound_iso_smiles": "CC(=O)OC1=CC=CC=C1C(=O)O", "source": "Default"},
             {"name": "Ibuprofen", "compound_iso_smiles": "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O", "source": "Default"},
@@ -37,11 +37,11 @@ except ImportError as e:
 
     def search_pubchem(query, max_compounds=100):
         st.warning("PubChem search unavailable")
-        return get_drugbank_approved_drugs()
+        return get_default_compounds()
 
     def search_chembl(query, max_compounds=100):
         st.warning("ChEMBL search unavailable")
-        return get_drugbank_approved_drugs()
+        return get_default_compounds()
 
 # Import the protein interaction module
 from protein_interaction import ProteinInteractionPredictor, download_pdb, create_protein_complex, calculate_docking_score
@@ -157,7 +157,7 @@ with tab1:
     st.sidebar.title("Data Source Settings")
     data_source = st.sidebar.selectbox(
         "Choose ligand data source:",
-        ["DrugBank (Approved Drugs)", "PubChem", "ChEMBL", "Local Dataset"],
+        ["PubChem", "ChEMBL", "Local CSV (data/kiba_test.csv)"],
         index=0
     )
 
@@ -165,6 +165,20 @@ with tab1:
         search_query = st.sidebar.text_input("Search term (e.g., drug name, SMILES, disease)", "aspirin")
         max_results = st.sidebar.slider("Maximum results to fetch", 10, 200, 50)
         search_button = st.sidebar.button("Search Database")
+
+    # Add prediction settings
+    st.sidebar.title("Prediction Settings")
+    num_ligands = st.sidebar.slider(
+        "Number of top ligands to predict:",
+        min_value=1,
+        max_value=20,
+        value=5,
+        help="Select how many of the top-scoring ligands you want to see. More ligands = longer processing time for visualization."
+    )
+    
+    # Add performance note
+    if num_ligands > 10:
+        st.sidebar.warning("⚠️ Predicting more than 10 ligands may take longer to process and visualize.")
 
     # Add visualization settings
     st.sidebar.title("Visualization Settings")
@@ -185,6 +199,10 @@ with tab1:
     )
 
     uploaded_protein = st.file_uploader("🔬 Upload a PDB file", type=["pdb"], key="ligand_tab")
+    
+    # Display current settings
+    if num_ligands != 5:
+        st.info(f"🎯 You've selected to predict the top **{num_ligands}** ligands instead of the default 5. You can change this in the sidebar.")
 
     # Display 3D preview when protein is uploaded
     if uploaded_protein is not None:
@@ -336,7 +354,7 @@ with tab1:
             # Help text
             st.caption("👆 Tip: Click and drag to rotate. Scroll to zoom. Shift+click to translate.")
 
-    predict_ligand_button = st.button("🔍 Predict Top 5 Ligands")
+    predict_ligand_button = st.button(f"🔍 Predict Top {num_ligands} Ligands")
 
     # Use session state to persist results
     if 'ligand_results' not in st.session_state:
@@ -351,7 +369,7 @@ with tab1:
         results = st.session_state['ligand_results']
         protein_data = st.session_state['ligand_protein_data']
 
-        st.subheader("🔝 Top 5 Predicted Ligands")
+        st.subheader(f"🔝 Top {len(results)} Predicted Ligands")
         st.dataframe(pd.DataFrame(results, columns=["SMILES", "Score"]))
 
         # Store ligand blocks and docking scores to avoid recalculating
@@ -545,9 +563,6 @@ with tab1:
                     st.error(f"No compounds found in ChEMBL for query: {search_query}")
                     st.stop()
                 st.info(f"Found {len(df)} compounds in ChEMBL for query: {search_query}")
-            elif data_source == "DrugBank (Approved Drugs)":
-                df = get_drugbank_approved_drugs()
-                st.info(f"Using {len(df)} approved drugs from DrugBank")
 
             # Find the SMILES column in the dataframe
             smiles_col = next((col for col in df.columns if 'smiles' in col.lower()), None)
@@ -613,7 +628,7 @@ with tab1:
                         st.warning(f"Skipped prediction for batch {idx} due to: {str(e)}")
                         continue
 
-            results = sorted(zip(smiles_valid, predictions), key=lambda x: x[1], reverse=True)[:5]
+            results = sorted(zip(smiles_valid, predictions), key=lambda x: x[1], reverse=True)[:num_ligands]
 
             # Always use 'chain' color scheme for all protein visualizations
             color_scheme = 'Chain'
@@ -628,7 +643,7 @@ with tab1:
             protein_data = st.session_state.get('ligand_protein_data')
 
             if results and smiles_valid and protein_data:
-                st.subheader("🔝 Top 5 Predicted Ligands")
+                st.subheader(f"🔝 Top {len(results)} Predicted Ligands")
                 st.dataframe(pd.DataFrame(results, columns=["SMILES", "Score"]))
                 for i, (smile, score) in enumerate(results, 1):
                     with st.container():
@@ -753,7 +768,7 @@ with tab1:
             results = st.session_state['ligand_results']
             protein_data = st.session_state['ligand_protein_data']
 
-            st.subheader("🔝 Top 5 Predicted Ligands")
+            st.subheader(f"🔝 Top {len(results)} Predicted Ligands")
             st.dataframe(pd.DataFrame(results, columns=["SMILES", "Score"]))
 
             # Store ligand blocks and docking scores to avoid recalculating
